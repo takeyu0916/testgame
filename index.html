@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>たけくんのインベーダー</title>
+    <title>たけくんのハッピーシューティング</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
+        body { margin: 0; overflow: hidden; background: #0b0d2b; } /* 宇宙っぽい紺色 */
         canvas { display: block; }
     </style>
 </head>
@@ -12,81 +12,82 @@
     <script type="module">
         import kaplay from "https://unpkg.com/kaplay@3001.0.0-alpha.20/dist/kaplay.mjs";
 
-        // ゲームの設定（スマホでも見やすいサイズに）
         const k = kaplay({
             width: 320,
             height: 480,
             letterbox: true,
-            background: [0, 0, 0],
+            background: [11, 13, 43],
         });
 
-        // 自機（たけくん）
+        // 自機：かわいいネコちゃん（たけくん）
         const player = k.add([
-            k.rect(40, 20),
-            k.pos(k.center().x, 440),
+            k.text("🐱", { size: 40 }), 
+            k.pos(k.center().x, 420),
             k.anchor("center"),
             k.area(),
-            k.color(0, 255, 0),
             "player"
         ]);
 
-        // スマホ操作：画面の下の方を触ったら左右に動くようにする
+        // 操作：スマホのタップ位置に合わせて左右に動く
         k.onUpdate(() => {
             if (k.isMouseDown()) {
                 const mpos = k.mousePos();
-                if (mpos.x < player.pos.x) player.move(-200, 0);
-                if (mpos.x > player.pos.x) player.move(200, 0);
+                if (mpos.x < player.pos.x - 10) player.move(-250, 0);
+                if (mpos.x > player.pos.x + 10) player.move(250, 0);
             }
         });
 
-        // 画面をタップしたら弾を撃つ
+        // 弾：キラキラ星を撃ち出す
         k.onMousePress(() => {
             k.add([
-                k.rect(4, 12),
-                k.pos(player.pos.x, player.pos.y - 20),
+                k.text("✨", { size: 24 }),
+                k.pos(player.pos.x, player.pos.y - 30),
                 k.anchor("center"),
-                k.color(255, 255, 255),
                 k.area(),
-                k.move(k.UP, 400),
+                k.move(k.UP, 500),
                 k.offscreen({ destroy: true }),
                 "bullet"
             ]);
         });
 
-        // 敵（とりあえず1匹出してみる）
+        // 敵：いろんな種類の星や宇宙人
         function spawnEnemy() {
+            const enemies = ["⭐", "🌟", "👾", "🛸"];
+            const type = k.choose(enemies); // ランダムに選ぶ
+
             k.add([
-                k.text("BUG", { size: 20 }),
-                k.pos(k.rand(40, 280), 50),
+                k.text(type, { size: 30 }),
+                k.pos(k.rand(40, 280), -20),
                 k.anchor("center"),
                 k.area(),
-                k.move(k.DOWN, 50),
+                k.move(k.DOWN, k.rand(80, 150)), // スピードもランダム
+                k.offscreen({ destroy: true }),
                 "enemy"
             ]);
         }
 
-        k.loop(2, () => spawnEnemy()); // 2秒ごとに敵を出す
+        k.loop(1.2, () => spawnEnemy()); // 1.2秒ごとに出現
 
-        // 当たり判定
+        // 当たり判定：当たったらハートが散る！
         k.onCollide("bullet", "enemy", (b, e) => {
             k.destroy(b);
             k.destroy(e);
-            k.addExplode(b.pos, 10); // 爆発エフェクト
+            addParticles(e.pos, "💩");
+            k.shake(2); // ちょっと画面を揺らす
         });
 
-        // 爆発の定義
-        k.addExplode = (p, n) => {
-            for (let i = 0; i < n; i++) {
-                const s = k.add([
+        // パーティクル演出
+        function addParticles(p, char) {
+            for (let i = 0; i < 5; i++) {
+                k.add([
+                    k.text(char, { size: 16 }),
                     k.pos(p),
-                    k.rect(4, 4),
-                    k.color(255, 255, 0),
                     k.move(k.rand(0, 360), k.rand(50, 150)),
                     k.opacity(1),
-                    k.lifespan(0.3),
+                    k.lifespan(0.4),
                 ]);
             }
-        };
+        }
 
     </script>
 </body>
