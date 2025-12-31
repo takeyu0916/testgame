@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>たけくんの爆走パーティクルSTG</title>
+    <title>ゆうくんの爆走サウンドSTG</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { margin: 0; overflow: hidden; background: #0b0d2b; font-family: sans-serif; }
@@ -19,20 +19,22 @@
             background: [11, 13, 43],
         });
 
-        // 画像のロード（画像がない場合でもエラーにならないようにしてるで）
-        k.loadSprite("p1", "player1.png").catch(() => console.log("p1 not found"));
-        k.loadSprite("p2", "player2.png").catch(() => console.log("p2 not found"));
+        // 1. 画像とサウンドのロード
+        k.loadSprite("p1", "player1.png").catch(() => {});
+        k.loadSprite("p2", "player2.png").catch(() => {});
+        
+        // Kaplay公式のサンプル音源を拝借するで！
+        k.loadSound("shoot_snd", "https://kaplayjs.com/examples/sounds/Laser_002.wav");
+        k.loadSound("expl_snd", "https://kaplayjs.com/examples/sounds/Explosion_001.wav");
+        k.loadSound("bgm", "https://kaplayjs.com/examples/sounds/Other_World.mp3");
 
-        // --- パーティクル（てんてん）を作る関数 ---
         function addParticles(p, char) {
-            for (let i = 0; i < 8; i++) { // 8個くらい飛ばすと賑やか！
+            for (let i = 0; i < 8; i++) {
                 k.add([
                     k.text(char, { size: 16 }),
                     k.pos(p),
-                    // 全方向にランダムに飛ばす
                     k.move(k.rand(0, 360), k.rand(60, 180)),
                     k.opacity(1),
-                    // 0.4秒で消えるようにする
                     k.lifespan(0.4, { fade: 0.5 }),
                 ]);
             }
@@ -43,9 +45,9 @@
             k.add([k.text("SELECT CHAR", { size: 24 }), k.pos(k.center().x, 80), k.anchor("center")]);
 
             const opts = [
-                { id: "p1", type: "sprite", label: "Mushroom", x: k.center().x - 90 },
-                { id: "p2", type: "sprite", label: "Hero", x: k.center().x },
-                { id: "🐰", type: "text", label: "Bunny", x: k.center().x + 90 }
+                { id: "p1", type: "sprite", label: "ゆういちくん", x: k.center().x - 90 },
+                { id: "p2", type: "sprite", label: "まみちゃん", x: k.center().x },
+                { id: "😺", type: "text", label: "ねこちゃん", x: k.center().x + 90 }
             ];
 
             opts.forEach(opt => {
@@ -57,9 +59,9 @@
                     opt.type === "sprite" ? k.scale(0.15) : null,
                     "choice"
                 ]);
-                k.add([k.text(opt.label, { size: 10 }), k.pos(opt.x, 300), k.anchor("center")]);
-
-                obj.onClick(() => k.go("main", opt));
+                k.onClick("choice", (c) => {
+                    if (c === obj) k.go("main", opt);
+                });
             });
         });
 
@@ -67,6 +69,9 @@
         k.scene("main", (charData) => {
             let score = 0;
             let hp = 3;
+
+            // BGMをループ再生！
+            const music = k.play("bgm", { loop: true, volume: 0.4 });
 
             const scoreLabel = k.add([k.text(`Score: ${score}`, { size: 20 }), k.pos(20, 20)]);
             const hpLabel = k.add([k.text(`HP: ${"❤️".repeat(hp)}`, { size: 20 }), k.pos(20, 50)]);
@@ -80,7 +85,6 @@
                 "player"
             ]);
 
-            // 操作
             k.onUpdate(() => {
                 if (k.isMouseDown()) {
                     const mpos = k.mousePos();
@@ -89,8 +93,8 @@
                 }
             });
 
-            // 弾
             k.onMousePress(() => {
+                k.play("shoot_snd", { volume: 0.3 }); // 撃つ音！
                 k.add([
                     k.text("✨", { size: 24 }),
                     k.pos(player.pos.x, player.pos.y - 30),
@@ -102,7 +106,6 @@
                 ]);
             });
 
-            // 敵
             k.loop(1.0, () => {
                 const e = k.add([
                     k.text(k.choose(["⭐", "🌟", "👾", "🛸"]), { size: 30 }),
@@ -112,36 +115,32 @@
                     k.move(k.DOWN, k.rand(120, 200)),
                     "enemy"
                 ]);
-
                 e.onUpdate(() => {
                     if (e.pos.y > 480) {
                         k.destroy(e);
                         hp--;
                         hpLabel.text = `HP: ${"❤️".repeat(hp)}`;
-                        k.shake(5);
-                        if (hp <= 0) k.go("lose", score);
+                        if (hp <= 0) {
+                            music.stop(); // 負けたらBGM止める
+                            k.go("lose", score);
+                        }
                     }
                 });
             });
 
-            // 当たり判定：ここで「てんてん」を呼び出す！
             k.onCollide("bullet", "enemy", (b, e) => {
                 const pos = e.pos;
                 k.destroy(b);
                 k.destroy(e);
+                k.play("expl_snd", { volume: 0.4 }); // 爆発音！
                 score += 10;
                 scoreLabel.text = `Score: ${score}`;
-                
-                // たけくんリクエストの演出！
                 addParticles(pos, "💩"); 
             });
         });
 
-        // --- シーン：ゲームオーバー ---
         k.scene("lose", (score) => {
             k.add([k.text("GAME OVER", { size: 32 }), k.pos(k.center()), k.anchor("center")]);
-            k.add([k.text(`Score: ${score}`, { size: 24 }), k.pos(k.center().x, k.center().y + 60), k.anchor("center")]);
-            k.add([k.text("Tap to Restart", { size: 16 }), k.pos(k.center().x, k.center().y + 120), k.anchor("center")]);
             k.onMousePress(() => k.go("select"));
         });
 
