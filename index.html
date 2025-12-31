@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>たけくんのハッピーシューティング</title>
+    <title>たけくんの爆走シューティング</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; overflow: hidden; background: #0b0d2b; } /* 宇宙っぽい紺色 */
+        body { margin: 0; overflow: hidden; background: #0b0d2b; font-family: sans-serif; }
         canvas { display: block; }
     </style>
 </head>
@@ -19,75 +19,129 @@
             background: [11, 13, 43],
         });
 
-        // 自機：かわいいネコちゃん（たけくん）
-        const player = k.add([
-            k.text("🐱", { size: 40 }), 
-            k.pos(k.center().x, 420),
-            k.anchor("center"),
-            k.area(),
-            "player"
-        ]);
+        // シーン管理：メインゲーム
+        k.scene("main", () => {
+            let score = 0;
+            let hp = 3;
 
-        // 操作：スマホのタップ位置に合わせて左右に動く
-        k.onUpdate(() => {
-            if (k.isMouseDown()) {
-                const mpos = k.mousePos();
-                if (mpos.x < player.pos.x - 10) player.move(-250, 0);
-                if (mpos.x > player.pos.x + 10) player.move(250, 0);
-            }
-        });
+            // スコア表示
+            const scoreLabel = k.add([
+                k.text(`Score: ${score}`, { size: 20 }),
+                k.pos(20, 20),
+            ]);
 
-        // 弾：キラキラ星を撃ち出す
-        k.onMousePress(() => {
-            k.add([
-                k.text("✨", { size: 24 }),
-                k.pos(player.pos.x, player.pos.y - 30),
+            // HP表示
+            const hpLabel = k.add([
+                k.text(`HP: ${"❤️".repeat(hp)}`, { size: 20 }),
+                k.pos(20, 50),
+            ]);
+
+            // 自機（ネコちゃん）
+            const player = k.add([
+                k.text("🐰", { size: 40 }), 
+                k.pos(k.center().x, 420),
                 k.anchor("center"),
                 k.area(),
-                k.move(k.UP, 500),
-                k.offscreen({ destroy: true }),
-                "bullet"
+                "player"
             ]);
-        });
 
-        // 敵：いろんな種類の星や宇宙人
-        function spawnEnemy() {
-            const enemies = ["⭐", "🌟", "👾", "🛸"];
-            const type = k.choose(enemies); // ランダムに選ぶ
+            // 操作
+            k.onUpdate(() => {
+                if (k.isMouseDown()) {
+                    const mpos = k.mousePos();
+                    if (mpos.x < player.pos.x - 10) player.move(-250, 0);
+                    if (mpos.x > player.pos.x + 10) player.move(250, 0);
+                }
+            });
 
-            k.add([
-                k.text(type, { size: 30 }),
-                k.pos(k.rand(40, 280), -20),
-                k.anchor("center"),
-                k.area(),
-                k.move(k.DOWN, k.rand(80, 150)), // スピードもランダム
-                k.offscreen({ destroy: true }),
-                "enemy"
-            ]);
-        }
-
-        k.loop(1.2, () => spawnEnemy()); // 1.2秒ごとに出現
-
-        // 当たり判定：当たったらハートが散る！
-        k.onCollide("bullet", "enemy", (b, e) => {
-            k.destroy(b);
-            k.destroy(e);
-            addParticles(e.pos, "💩");
-            k.shake(2); // ちょっと画面を揺らす
-        });
-
-        // パーティクル演出
-        function addParticles(p, char) {
-            for (let i = 0; i < 5; i++) {
+            // 弾
+            k.onMousePress(() => {
                 k.add([
-                    k.text(char, { size: 16 }),
-                    k.pos(p),
-                    k.move(k.rand(0, 360), k.rand(50, 150)),
-                    k.opacity(1),
-                    k.lifespan(0.4),
+                    k.text("✨", { size: 24 }),
+                    k.pos(player.pos.x, player.pos.y - 30),
+                    k.anchor("center"),
+                    k.area(),
+                    k.move(k.UP, 500),
+                    k.offscreen({ destroy: true }),
+                    "bullet"
                 ]);
+            });
+
+            // 敵
+            function spawnEnemy() {
+                const enemies = ["⭐", "🌟", "👾", "🛸"];
+                const e = k.add([
+                    k.text(k.choose(enemies), { size: 30 }),
+                    k.pos(k.rand(40, 280), -20),
+                    k.anchor("center"),
+                    k.area(),
+                    k.move(k.DOWN, k.rand(100, 180)),
+                    "enemy"
+                ]);
+
+                // 画面外（下）に出た時の処理
+                e.onUpdate(() => {
+                    if (e.pos.y > 480) {
+                        k.destroy(e);
+                        hp -= 1;
+                        hpLabel.text = `HP: ${"❤️".repeat(hp)}`;
+                        k.shake(5);
+                        if (hp <= 0) {
+                            k.go("lose", score); // ゲームオーバーシーンへ
+                        }
+                    }
+                });
             }
-        }
+
+            k.loop(1.0, () => spawnEnemy());
+
+            // 当たり判定
+            k.onCollide("bullet", "enemy", (b, e) => {
+                k.destroy(b);
+                k.destroy(e);
+                score += 10;
+                scoreLabel.text = `Score: ${score}`;
+                addParticles(e.pos, "💩");
+            });
+
+            function addParticles(p, char) {
+                for (let i = 0; i < 5; i++) {
+                    k.add([
+                        k.text(char, { size: 16 }),
+                        k.pos(p),
+                        k.move(k.rand(0, 360), k.rand(50, 150)),
+                        k.opacity(1),
+                        k.lifespan(0.3),
+                    ]);
+                }
+            }
+        });
+
+        // シーン管理：ゲームオーバー
+        k.scene("lose", (score) => {
+            k.add([
+                k.text("GAME OVER", { size: 32 }),
+                k.pos(k.center()),
+                k.anchor("center"),
+            ]);
+
+            k.add([
+                k.text(`Score: ${score}`, { size: 24 }),
+                k.pos(k.center().x, k.center().y + 50),
+                k.anchor("center"),
+            ]);
+
+            k.add([
+                k.text("Tap to Restart", { size: 16 }),
+                k.pos(k.center().x, k.center().y + 100),
+                k.anchor("center"),
+            ]);
+
+            k.onMousePress(() => k.go("main"));
+        });
+
+        // 最初にゲーム開始
+        k.go("main");
 
     </script>
 </body>
