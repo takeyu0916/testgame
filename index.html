@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>たけくんのインベーダー</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import kaplay from "https://unpkg.com/kaplay@3001.0.0-alpha.20/dist/kaplay.mjs";
+
+        // ゲームの設定（スマホでも見やすいサイズに）
+        const k = kaplay({
+            width: 320,
+            height: 480,
+            letterbox: true,
+            background: [0, 0, 0],
+        });
+
+        // 自機（たけくん）
+        const player = k.add([
+            k.rect(40, 20),
+            k.pos(k.center().x, 440),
+            k.anchor("center"),
+            k.area(),
+            k.color(0, 255, 0),
+            "player"
+        ]);
+
+        // スマホ操作：画面の下の方を触ったら左右に動くようにする
+        k.onUpdate(() => {
+            if (k.isMouseDown()) {
+                const mpos = k.mousePos();
+                if (mpos.x < player.pos.x) player.move(-200, 0);
+                if (mpos.x > player.pos.x) player.move(200, 0);
+            }
+        });
+
+        // 画面をタップしたら弾を撃つ
+        k.onMousePress(() => {
+            k.add([
+                k.rect(4, 12),
+                k.pos(player.pos.x, player.pos.y - 20),
+                k.anchor("center"),
+                k.color(255, 255, 255),
+                k.area(),
+                k.move(k.UP, 400),
+                k.offscreen({ destroy: true }),
+                "bullet"
+            ]);
+        });
+
+        // 敵（とりあえず1匹出してみる）
+        function spawnEnemy() {
+            k.add([
+                k.text("BUG", { size: 20 }),
+                k.pos(k.rand(40, 280), 50),
+                k.anchor("center"),
+                k.area(),
+                k.move(k.DOWN, 50),
+                "enemy"
+            ]);
+        }
+
+        k.loop(2, () => spawnEnemy()); // 2秒ごとに敵を出す
+
+        // 当たり判定
+        k.onCollide("bullet", "enemy", (b, e) => {
+            k.destroy(b);
+            k.destroy(e);
+            k.addExplode(b.pos, 10); // 爆発エフェクト
+        });
+
+        // 爆発の定義
+        k.addExplode = (p, n) => {
+            for (let i = 0; i < n; i++) {
+                const s = k.add([
+                    k.pos(p),
+                    k.rect(4, 4),
+                    k.color(255, 255, 0),
+                    k.move(k.rand(0, 360), k.rand(50, 150)),
+                    k.opacity(1),
+                    k.lifespan(0.3),
+                ]);
+            }
+        };
+
+    </script>
+</body>
+</html>
