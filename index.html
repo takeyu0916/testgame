@@ -19,15 +19,14 @@
             background: [11, 13, 43],
         });
 
-        // 1. 画像とサウンドのロード
-        k.loadSprite("p1", "player1.png").catch(() => {});
-        k.loadSprite("p2", "player2.png").catch(() => {});
-        
-        // Kaplay公式のサンプル音源を拝借するで！
-        k.loadSound("shoot_snd", "https://kaplayjs.com/examples/sounds/Laser_002.wav");
-        k.loadSound("expl_snd", "https://kaplayjs.com/examples/sounds/Explosion_001.wav");
-        k.loadSound("bgm", "https://kaplayjs.com/examples/sounds/Other_World.mp3");
+        // 1. 画像のロード（音声ロードは削除したで）
+        for (let i = 1; i <= 5; i++) {
+            k.loadSprite(`p${i}`, `player${i}.png`).catch(() => {
+                console.log(`player${i}.png が見つかりません`);
+            });
+        }
 
+        // エフェクト用の関数
         function addParticles(p, char) {
             for (let i = 0; i < 8; i++) {
                 k.add([
@@ -42,23 +41,34 @@
 
         // --- シーン：キャラ選択 ---
         k.scene("select", () => {
-            k.add([k.text("SELECT CHAR", { size: 24 }), k.pos(k.center().x, 80), k.anchor("center")]);
+            k.add([k.text("SELECT CHAR", { size: 24 }), k.pos(k.center().x, 60), k.anchor("center")]);
 
+            // 5つの画像キャラ + 🐱を追加
             const opts = [
-                { id: "p1", type: "sprite", label: "ゆういちくん", x: k.center().x - 90 },
-                { id: "p2", type: "sprite", label: "まみちゃん", x: k.center().x },
-                { id: "🐱", type: "text", label: "ねこちゃん", x: k.center().x + 90 }
+                { id: "p1", type: "sprite", label: "No.1", x: 60, y: 180 },
+                { id: "p2", type: "sprite", label: "No.2", x: 160, y: 180 },
+                { id: "p3", type: "sprite", label: "No.3", x: 260, y: 180 },
+                { id: "p4", type: "sprite", label: "No.4", x: 60, y: 300 },
+                { id: "p5", type: "sprite", label: "No.5", x: 160, y: 300 },
+                { id: "🐱", type: "text",   label: "NEKO", x: 260, y: 300 }
             ];
 
             opts.forEach(opt => {
                 const obj = k.add([
                     opt.type === "sprite" ? k.sprite(opt.id) : k.text(opt.id, { size: 40 }),
-                    k.pos(opt.x, 240),
+                    k.pos(opt.x, opt.y),
                     k.anchor("center"),
                     k.area(),
                     opt.type === "sprite" ? k.scale(0.15) : null,
                     "choice"
                 ]);
+
+                k.add([
+                    k.text(opt.label, { size: 12 }),
+                    k.pos(opt.x, opt.y + 40),
+                    k.anchor("center")
+                ]);
+
                 k.onClick("choice", (c) => {
                     if (c === obj) k.go("main", opt);
                 });
@@ -69,9 +79,6 @@
         k.scene("main", (charData) => {
             let score = 0;
             let hp = 3;
-
-            // BGMをループ再生！
-            const music = k.play("bgm", { loop: true, volume: 0.4 });
 
             const scoreLabel = k.add([k.text(`Score: ${score}`, { size: 20 }), k.pos(20, 20)]);
             const hpLabel = k.add([k.text(`HP: ${"❤️".repeat(hp)}`, { size: 20 }), k.pos(20, 50)]);
@@ -94,7 +101,6 @@
             });
 
             k.onMousePress(() => {
-                k.play("shoot_snd", { volume: 0.3 }); // 撃つ音！
                 k.add([
                     k.text("✨", { size: 24 }),
                     k.pos(player.pos.x, player.pos.y - 30),
@@ -120,10 +126,7 @@
                         k.destroy(e);
                         hp--;
                         hpLabel.text = `HP: ${"❤️".repeat(hp)}`;
-                        if (hp <= 0) {
-                            music.stop(); // 負けたらBGM止める
-                            k.go("lose", score);
-                        }
+                        if (hp <= 0) k.go("lose", score);
                     }
                 });
             });
@@ -132,15 +135,23 @@
                 const pos = e.pos;
                 k.destroy(b);
                 k.destroy(e);
-                k.play("expl_snd", { volume: 0.4 }); // 爆発音！
                 score += 10;
                 scoreLabel.text = `Score: ${score}`;
-                addParticles(pos, "💩"); 
+                
+                // パーティクルの出し分け
+                if (charData.id === "🐱") {
+                    addParticles(pos, "🐟"); // ねこちゃんは魚！
+                } else if (charData.id === "p2" || charData.id === "p5") {
+                    addParticles(pos, "🌸"); // 2と5は桜
+                } else {
+                    addParticles(pos, "💩"); // その他は💩
+                }
             });
         });
 
         k.scene("lose", (score) => {
             k.add([k.text("GAME OVER", { size: 32 }), k.pos(k.center()), k.anchor("center")]);
+            k.add([k.text(`Score: ${score}`, { size: 24 }), k.pos(k.center().x, k.center().y + 50), k.anchor("center")]);
             k.onMousePress(() => k.go("select"));
         });
 
@@ -149,4 +160,3 @@
     </script>
 </body>
 </html>
-
